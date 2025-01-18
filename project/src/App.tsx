@@ -5,6 +5,7 @@ import { SurahView } from './components/SurahView';
 import { AyahNote } from './components/AyahNote';
 import { AuthForm } from './components/AuthForm';
 import { Navbar } from './components/Navbar';
+import { Settings } from './components/Settings';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="/ayah/:surahNumber/:ayahNumber" element={<AyahNote />} />
           <Route path="/login" element={<AuthForm type="login" />} />
           <Route path="/register" element={<AuthForm type="register" />} />
+          <Route path="/settings" element={<Settings />} />
         </Routes>
       </div>
     </BrowserRouter>

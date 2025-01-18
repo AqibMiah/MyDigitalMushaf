@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { Book, LogOut, User } from 'lucide-react';
+import { Book, LogOut, User, Settings } from 'lucide-react';
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -38,6 +38,13 @@ export function Navbar() {
                   <User className="h-4 w-4 mr-2" />
                   {user.user_metadata?.username}
                 </span>
+                <Link
+                  to="/settings"
+                  className="flex items-center px-3 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="flex items-center px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 transition-colors"
