@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { ChevronLeft, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
 import type { Ayah, Note } from '../types';
 
 export function AyahNote() {
@@ -11,22 +11,26 @@ export function AyahNote() {
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [totalAyahs, setTotalAyahs] = useState(0);
 
   useEffect(() => {
     const fetchAyah = async () => {
       try {
-        const [arabicResponse, translationResponse] = await Promise.all([
+        const [arabicResponse, translationResponse, surahResponse] = await Promise.all([
           fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}`),
-          fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/en.asad`)
+          fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/en.asad`),
+          fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}`)
         ]);
 
         const arabicData = await arabicResponse.json();
         const translationData = await translationResponse.json();
+        const surahData = await surahResponse.json();
 
         setAyah({
           ...arabicData.data,
           translation: translationData.data.text
         });
+        setTotalAyahs(surahData.data.numberOfAyahs);
 
         // Fetch existing note
         const { data: user } = await supabase.auth.getUser();
@@ -41,6 +45,8 @@ export function AyahNote() {
 
           if (noteData) {
             setNote(noteData.content);
+          } else {
+            setNote('');
           }
         }
       } catch (error) {
@@ -78,6 +84,31 @@ export function AyahNote() {
     setSaving(false);
   };
 
+  const navigateToAyah = (direction: 'prev' | 'next') => {
+    const currentAyah = Number(ayahNumber);
+    const currentSurah = Number(surahNumber);
+
+    if (direction === 'prev') {
+      if (currentAyah > 1) {
+        navigate(`/ayah/${currentSurah}/${currentAyah - 1}`);
+      } else if (currentSurah > 1) {
+        // Navigate to the last ayah of the previous surah
+        fetch(`https://api.alquran.cloud/v1/surah/${currentSurah - 1}`)
+          .then(res => res.json())
+          .then(data => {
+            navigate(`/ayah/${currentSurah - 1}/${data.data.numberOfAyahs}`);
+          });
+      }
+    } else {
+      if (currentAyah < totalAyahs) {
+        navigate(`/ayah/${currentSurah}/${currentAyah + 1}`);
+      } else if (currentSurah < 114) {
+        // Navigate to the first ayah of the next surah
+        navigate(`/ayah/${currentSurah + 1}/1`);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -91,13 +122,34 @@ export function AyahNote() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 p-6">
       <div className="max-w-4xl mx-auto">
-        <button
-          onClick={() => navigate(`/surah/${surahNumber}`)}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg mb-8"
-        >
-          <ChevronLeft size={20} className="mr-2" />
-          Back to Surah
-        </button>
+        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+          <button
+            onClick={() => navigate(`/surah/${surahNumber}`)}
+            className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <ChevronLeft size={20} className="mr-2" />
+            Back to Surah
+          </button>
+          
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={() => navigateToAyah('prev')}
+              disabled={Number(surahNumber) === 1 && Number(ayahNumber) === 1}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft size={20} className="mr-2" />
+              Previous Ayah
+            </button>
+            <button
+              onClick={() => navigateToAyah('next')}
+              disabled={Number(surahNumber) === 114 && Number(ayahNumber) === totalAyahs}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next Ayah
+              <ChevronRight size={20} className="ml-2" />
+            </button>
+          </div>
+        </div>
 
         <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
           <div className="p-6">
