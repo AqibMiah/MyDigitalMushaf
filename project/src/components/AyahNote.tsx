@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, AlertCircle } from 'lucide-react';
 import type { Ayah, Note } from '../types';
 
 export function AyahNote() {
@@ -12,76 +12,94 @@ export function AyahNote() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [totalAyahs, setTotalAyahs] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchAyah = async () => {
-      try {
-        const [arabicResponse, translationResponse, surahResponse] = await Promise.all([
-          fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}`),
-          fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/en.asad`),
-          fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}`)
-        ]);
+ useEffect(() => {
+  const fetchAyah = async () => {
+    try {
+      const [arabicResponse, translationResponse, surahResponse] = await Promise.all([
+        fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}`),
+        fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/en.asad`),
+        fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}`)
+      ]);
 
-        const arabicData = await arabicResponse.json();
-        const translationData = await translationResponse.json();
-        const surahData = await surahResponse.json();
+      const arabicData = await arabicResponse.json();
+      const translationData = await translationResponse.json();
+      const surahData = await surahResponse.json();
 
-        setAyah({
-          ...arabicData.data,
-          translation: translationData.data.text
-        });
-        setTotalAyahs(surahData.data.numberOfAyahs);
+      setAyah({
+        ...arabicData.data,
+        translation: translationData.data.text
+      });
+      setTotalAyahs(surahData.data.numberOfAyahs);
 
-        // Fetch existing note
-        const { data: user } = await supabase.auth.getUser();
-        if (user) {
-          const { data: noteData } = await supabase
+      // Fetch existing note
+      const { data: user } = await supabase.auth.getUser();
+      if (user) {
+          const { data: noteData, error: noteError } = await supabase
             .from('notes')
             .select('content')
-            .eq('user_id', user.user.id)
+            .eq('user_id', user?.user?.id)
             .eq('surah_number', surahNumber)
             .eq('ayah_number', ayahNumber)
-            .single();
+            .limit(1); // Fetch at most one row
 
-          if (noteData) {
-            setNote(noteData.content);
+          if (noteError) {
+            console.error('Error fetching note:', noteError.message);
+          } else if (noteData.length > 0) {
+            setNote(noteData[0].content);
+          } else {
+            setNote('');
+          }
+          if (noteData && noteData.length > 0) {
+            setNote(noteData[0].content);
           } else {
             setNote('');
           }
         }
-      } catch (error) {
-        console.error('Error fetching ayah:', error);
-      }
-      setLoading(false);
-    };
+    } catch (error) {
+      console.error('Error fetching ayah:', error);
+    }
+    setLoading(false);
+  };
 
-    fetchAyah();
-  }, [surahNumber, ayahNumber]);
+  fetchAyah();
+}, [surahNumber, ayahNumber]);
 
   const saveNote = async () => {
     setSaving(true);
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: user, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('Error fetching user:', authError?.message || 'No user found');
         navigate('/login');
         return;
       }
-
+  
       const { data, error } = await supabase
         .from('notes')
-        .upsert({
-          user_id: user.user.id,
-          surah_number: Number(surahNumber),
-          ayah_number: Number(ayahNumber),
-          content: note
-        })
+        .upsert(
+          {
+            user_id: user.user.id,
+            surah_number: Number(surahNumber),
+            ayah_number: Number(ayahNumber),
+            content: note,
+          },
+          { onConflict: ['user_id', 'surah_number', 'ayah_number'] } // Specify conflict columns
+        )
         .select();
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error saving note:', error);
+  
+      if (error) {
+        console.error('Error saving note:', error.message);
+        throw error;
+      }
+  
+      console.log('Note saved successfully:', data);
+    } catch (error: any) {
+      console.error('Error saving note:', error.message || error);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const navigateToAyah = (direction: 'prev' | 'next') => {
@@ -96,8 +114,11 @@ export function AyahNote() {
         fetch(`https://api.alquran.cloud/v1/surah/${currentSurah - 1}`)
           .then(res => res.json())
           .then(data => {
-            navigate(`/ayah/${currentSurah - 1}/${data.data.numberOfAyahs}`);
-          });
+            if (data.code === 200) {
+              navigate(`/ayah/${currentSurah - 1}/${data.data.numberOfAyahs}`);
+            }
+          })
+          .catch(error => console.error('Error fetching previous surah:', error));
       }
     } else {
       if (currentAyah < totalAyahs) {
@@ -117,12 +138,34 @@ export function AyahNote() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 p-6">
+        <div className="max-w-4xl mx-auto">
+          <button
+            onClick={() => navigate(`/surah/${surahNumber}`)}
+            className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mb-8"
+          >
+            <ChevronLeft size={20} className="mr-2" />
+            Back to Surah
+          </button>
+          
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+            <h2 className="text-xl font-semibold text-red-700 mb-2">Error Loading Ayah</h2>
+            <p className="text-red-600">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!ayah) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 p-6">
       <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+        <div className="flex flex-col gap-4 mb-8">
           <button
             onClick={() => navigate(`/surah/${surahNumber}`)}
             className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -131,7 +174,7 @@ export function AyahNote() {
             Back to Surah
           </button>
           
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-between w-full">
             <button
               onClick={() => navigateToAyah('prev')}
               disabled={Number(surahNumber) === 1 && Number(ayahNumber) === 1}
