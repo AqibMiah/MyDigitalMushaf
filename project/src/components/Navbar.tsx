@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { Book, LogOut, User, Settings, Menu } from 'lucide-react';
+import { Button } from "@/components/ui/button"; // Assuming shadcn's Button component
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -49,12 +50,12 @@ export function Navbar() {
 
   if (isLoading) {
     return (
-      <nav className="bg-blue-600 text-white shadow-lg">
+      <nav className="bg-gray-50 shadow-md">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center space-x-2">
-              <Book className="h-5 w-5 sm:h-6 sm:w-6" />
-              <span className="font-bold text-lg sm:text-xl">My Digital Mushaf</span>
+              <Book className="h-5 w-5 sm:h-6 sm:w-6 text-gray-800" />
+              <span className="font-bold text-lg sm:text-xl text-gray-800">My Digital Mushaf</span>
             </Link>
           </div>
         </div>
@@ -63,103 +64,90 @@ export function Navbar() {
   }
 
   return (
-    <nav className="bg-blue-600 text-white shadow-lg">
+    <nav className="bg-gray-50 shadow-md">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center space-x-2">
-            <Book className="h-5 w-5 sm:h-6 sm:w-6" />
-            <span className="font-bold text-lg sm:text-xl">My Digital Mushaf</span>
+            <Book className="h-5 w-5 sm:h-6 sm:w-6 text-gray-800" />
+            <span className="font-bold text-lg sm:text-xl text-gray-800">My Digital Mushaf</span>
           </Link>
 
-          {/* Mobile menu button */}
-          <button
+          {/* Mobile Menu Button */}
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 rounded-md hover:bg-blue-700 transition-colors"
+            className="md:hidden"
           >
             <Menu className="h-6 w-6" />
-          </button>
+          </Button>
 
-          {/* Desktop menu */}
+          {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <>
-                <span className="flex items-center text-sm">
+                <span className="flex items-center text-sm text-gray-800">
                   <User className="h-4 w-4 mr-1" />
                   {user.user_metadata?.username}
                 </span>
-                <Link
-                  to="/settings"
-                  className="flex items-center px-3 py-2 text-sm rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  <Settings className="h-4 w-4 mr-1" />
-                  Settings
+                <Link to="/settings">
+                  <Button variant="ghost" className="flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Button>
                 </Link>
-                <button
+                <Button
+                  variant="default"
+                  className="flex items-center gap-2"
                   onClick={handleLogout}
-                  className="flex items-center px-3 py-2 text-sm rounded-md bg-blue-700 hover:bg-blue-800 transition-colors"
                 >
-                  <LogOut className="h-4 w-4 mr-1" />
+                  <LogOut className="h-4 w-4" />
                   Logout
-                </button>
+                </Button>
               </>
             ) : (
               <div className="space-x-4">
-                <Link
-                  to="/login"
-                  className="text-sm px-3 py-2 rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  Login
+                <Link to="/login">
+                  <Button variant="ghost">Login</Button>
                 </Link>
-                <Link
-                  to="/register"
-                  className="text-sm px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 transition-colors"
-                >
-                  Register
+                <Link to="/register">
+                  <Button variant="default">Register</Button>
                 </Link>
               </div>
             )}
           </div>
         </div>
 
-        {/* Mobile menu */}
+        {/* Mobile Menu */}
         <div className={`md:hidden ${isMenuOpen ? 'block' : 'hidden'} pb-4`}>
           {user ? (
-            <div className="flex flex-col space-y-2">
-              <span className="flex items-center text-sm py-2">
+            <div className="space-y-2">
+              <span className="flex items-center text-sm text-gray-800">
                 <User className="h-4 w-4 mr-1" />
                 {user.user_metadata?.username}
               </span>
-              <Link
-                to="/settings"
-                onClick={() => setIsMenuOpen(false)}
-                className="flex items-center px-3 py-2 text-sm rounded-md hover:bg-blue-700 transition-colors"
-              >
-                <Settings className="h-4 w-4 mr-1" />
-                Settings
+              <Link to="/settings" onClick={() => setIsMenuOpen(false)}>
+                <Button variant="ghost" className="w-full justify-start flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Button>
               </Link>
-              <button
+              <Button
+                variant="default"
+                className="w-full justify-start flex items-center gap-2"
                 onClick={handleLogout}
-                className="flex items-center px-3 py-2 text-sm rounded-md bg-blue-700 hover:bg-blue-800 transition-colors"
               >
-                <LogOut className="h-4 w-4 mr-1" />
+                <LogOut className="h-4 w-4" />
                 Logout
-              </button>
+              </Button>
             </div>
           ) : (
-            <div className="flex flex-col space-y-2">
-              <Link
-                to="/login"
-                onClick={() => setIsMenuOpen(false)}
-                className="text-sm px-3 py-2 rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Login
+            <div className="space-y-2">
+              <Link to="/login" onClick={() => setIsMenuOpen(false)}>
+                <Button variant="ghost" className="w-full">Login</Button>
               </Link>
-              <Link
-                to="/register"
-                onClick={() => setIsMenuOpen(false)}
-                className="text-sm px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 transition-colors"
-              >
-                Register
+              <Link to="/register" onClick={() => setIsMenuOpen(false)}>
+                <Button variant="default" className="w-full">Register</Button>
               </Link>
             </div>
           )}

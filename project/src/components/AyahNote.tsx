@@ -1,130 +1,153 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../supabase';
-import { ChevronLeft, ChevronRight, Save, AlertCircle } from 'lucide-react';
-import type { Ayah, Note } from '../types';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "../supabase";
+import { ChevronLeft, ChevronRight, Save, AlertCircle, Volume2 } from "lucide-react";
+import type { Ayah } from "../types";
+import { Button } from "@/components/ui/button";
 
 export function AyahNote() {
   const { surahNumber, ayahNumber } = useParams();
   const navigate = useNavigate();
   const [ayah, setAyah] = useState<Ayah | null>(null);
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [totalAyahs, setTotalAyahs] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
 
- useEffect(() => {
-  const fetchAyah = async () => {
+  const fetchUserSession = async () => {
     try {
-      const [arabicResponse, translationResponse, surahResponse] = await Promise.all([
-        fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}`),
-        fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/en.asad`),
-        fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}`)
-      ]);
-
-      const arabicData = await arabicResponse.json();
-      const translationData = await translationResponse.json();
-      const surahData = await surahResponse.json();
-
-      setAyah({
-        ...arabicData.data,
-        translation: translationData.data.text
-      });
-      setTotalAyahs(surahData.data.numberOfAyahs);
-
-      // Fetch existing note
-      const { data: user } = await supabase.auth.getUser();
-      if (user) {
-          const { data: noteData, error: noteError } = await supabase
-            .from('notes')
-            .select('content')
-            .eq('user_id', user?.user?.id)
-            .eq('surah_number', surahNumber)
-            .eq('ayah_number', ayahNumber)
-            .limit(1); // Fetch at most one row
-
-          if (noteError) {
-            console.error('Error fetching note:', noteError.message);
-          } else if (noteData.length > 0) {
-            setNote(noteData[0].content);
-          } else {
-            setNote('');
-          }
-          if (noteData && noteData.length > 0) {
-            setNote(noteData[0].content);
-          } else {
-            setNote('');
-          }
-        }
-    } catch (error) {
-      console.error('Error fetching ayah:', error);
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session) {
+        console.warn("No session found. Redirecting to login...");
+        return null;
+      }
+      return session.user;
+    } catch (err: any) {
+      console.error("Unexpected error fetching session:", err.message);
+      return null;
     }
-    setLoading(false);
   };
 
-  fetchAyah();
-}, [surahNumber, ayahNumber]);
+  useEffect(() => {
+    const fetchAyah = async () => {
+      try {
+        setLoading(true);
+
+        const [arabicResponse, surahResponse] = await Promise.all([
+          fetch(`https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}`),
+          fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}`),
+        ]);
+
+        const arabicData = await arabicResponse.json();
+        const surahData = await surahResponse.json();
+
+        setAyah(arabicData.data);
+        setTotalAyahs(surahData.data.numberOfAyahs);
+
+        const user = await fetchUserSession();
+        if (user) {
+          const { data: noteData, error: noteError } = await supabase
+            .from("notes")
+            .select("content")
+            .eq("user_id", user.id)
+            .eq("surah_number", Number(surahNumber))
+            .eq("ayah_number", Number(ayahNumber))
+            .single();
+
+          if (noteError) {
+            console.error("Error fetching note:", noteError.message);
+          } else {
+            setNote(noteData?.content || "");
+          }
+        } else {
+          navigate("/login");
+        }
+      } catch (err: any) {
+        console.error("Error fetching ayah:", err.message);
+        setError("Failed to load Ayah details. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAyah();
+  }, [surahNumber, ayahNumber, navigate]);
 
   const saveNote = async () => {
     setSaving(true);
+    setError(null);
+
     try {
-      const { data: user, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        console.error('Error fetching user:', authError?.message || 'No user found');
-        navigate('/login');
-        return;
-      }
-  
-      const { data, error } = await supabase
-        .from('notes')
-        .upsert(
-          {
-            user_id: user.user.id,
-            surah_number: Number(surahNumber),
-            ayah_number: Number(ayahNumber),
-            content: note,
-          },
-          { onConflict: ['user_id', 'surah_number', 'ayah_number'] } // Specify conflict columns
-        )
-        .select();
-  
+      const user = await fetchUserSession();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from("notes")
+        .upsert({
+          user_id: user.id,
+          surah_number: Number(surahNumber),
+          ayah_number: Number(ayahNumber),
+          content: note,
+        }, { onConflict: ["user_id", "surah_number", "ayah_number"] });
+
       if (error) {
-        console.error('Error saving note:', error.message);
+        console.error("Error saving note:", error.message);
         throw error;
       }
-  
-      console.log('Note saved successfully:', data);
-    } catch (error: any) {
-      console.error('Error saving note:', error.message || error);
+
+      console.log("Note saved successfully");
+    } catch (err: any) {
+      console.error("Error saving note:", err.message);
+      setError("Failed to save the note. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  const navigateToAyah = (direction: 'prev' | 'next') => {
+  const playRecitation = async () => {
+    try {
+      const response = await fetch(
+        `https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/ar.alafasy`
+      );
+      const data = await response.json();
+      if (data.code === 200 && data.data.audio) {
+        if (audio) {
+          audio.pause();
+        }
+        const newAudio = new Audio(data.data.audio);
+        setAudio(newAudio);
+        newAudio.play();
+      } else {
+        console.error("Recitation not available for this Ayah");
+      }
+    } catch (error) {
+      console.error("Error fetching recitation:", error);
+    }
+  };
+
+  const navigateToAyah = (direction: "prev" | "next") => {
     const currentAyah = Number(ayahNumber);
     const currentSurah = Number(surahNumber);
 
-    if (direction === 'prev') {
+    if (direction === "prev") {
       if (currentAyah > 1) {
         navigate(`/ayah/${currentSurah}/${currentAyah - 1}`);
       } else if (currentSurah > 1) {
-        // Navigate to the last ayah of the previous surah
         fetch(`https://api.alquran.cloud/v1/surah/${currentSurah - 1}`)
-          .then(res => res.json())
-          .then(data => {
+          .then((res) => res.json())
+          .then((data) => {
             if (data.code === 200) {
               navigate(`/ayah/${currentSurah - 1}/${data.data.numberOfAyahs}`);
             }
           })
-          .catch(error => console.error('Error fetching previous surah:', error));
+          .catch((error) => console.error("Error fetching previous surah:", error));
       }
     } else {
       if (currentAyah < totalAyahs) {
         navigate(`/ayah/${currentSurah}/${currentAyah + 1}`);
       } else if (currentSurah < 114) {
-        // Navigate to the first ayah of the next surah
         navigate(`/ayah/${currentSurah + 1}/1`);
       }
     }
@@ -133,97 +156,95 @@ export function AyahNote() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-600"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 p-6">
+      <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-4xl mx-auto">
-          <button
+          <Button
+            variant="ghost"
+            className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 w-fit"
             onClick={() => navigate(`/surah/${surahNumber}`)}
-            className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mb-8"
           >
             <ChevronLeft size={20} className="mr-2" />
             Back to Surah
-          </button>
-          
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          </Button>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center mt-6">
             <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-            <h2 className="text-xl font-semibold text-red-700 mb-2">Error Loading Ayah</h2>
-            <p className="text-red-600">{error}</p>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Ayah</h2>
+            <p className="text-gray-700">{error}</p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!ayah) return null;
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col gap-4 mb-8">
-          <button
+          <Button
+            variant="ghost"
+            className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 w-fit"
             onClick={() => navigate(`/surah/${surahNumber}`)}
-            className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <ChevronLeft size={20} className="mr-2" />
             Back to Surah
-          </button>
-          
+          </Button>
           <div className="flex justify-between w-full">
-            <button
-              onClick={() => navigateToAyah('prev')}
+            <Button
+              variant="ghost"
+              className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800"
+              onClick={() => navigateToAyah("prev")}
               disabled={Number(surahNumber) === 1 && Number(ayahNumber) === 1}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronLeft size={20} className="mr-2" />
               Previous Ayah
-            </button>
-            <button
-              onClick={() => navigateToAyah('next')}
+            </Button>
+            <Button
+              variant="ghost"
+              className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800"
+              onClick={() => navigateToAyah("next")}
               disabled={Number(surahNumber) === 114 && Number(ayahNumber) === totalAyahs}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next Ayah
               <ChevronRight size={20} className="ml-2" />
-            </button>
+            </Button>
           </div>
         </div>
-
-        <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
-          <div className="p-6">
-            <div className="mb-4">
-              <span className="text-blue-600 font-bold">
-                {ayah.numberInSurah}
-              </span>
-            </div>
-            <p className="text-2xl text-right mb-4 font-arabic">{ayah.text}</p>
-            <p className="text-blue-800">{ayah.translation}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-6">
-            <h2 className="text-xl font-bold text-blue-900 mb-4">Your Notes</h2>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="w-full h-64 p-4 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Write your notes here..."
-            />
+        <div className="bg-white p-6 rounded-lg">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="text-gray-800 font-bold">{ayah.numberInSurah}</span>
             <button
-              onClick={saveNote}
-              disabled={saving}
-              className="mt-4 flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200"
+              onClick={playRecitation}
+              className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
             >
-              <Save size={20} className="mr-2" />
-              {saving ? 'Saving...' : 'Save Note'}
+              <Volume2 size={20} />
             </button>
           </div>
+          <p className="text-2xl text-right mb-4 font-arabic text-gray-800">{ayah.text}</p>
+        </div>
+        <div className="bg-white p-6 rounded-lg">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Your Notes</h2>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500"
+            placeholder="Write your notes here..."
+          />
+          <Button
+            variant="ghost"
+            onClick={saveNote}
+            disabled={saving}
+            className="mt-4 flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800"
+          >
+            <Save size={20} className="mr-2" />
+            {saving ? "Saving..." : "Save Note"}
+          </Button>
         </div>
       </div>
     </div>
