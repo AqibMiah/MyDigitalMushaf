@@ -8,6 +8,8 @@ import { AuthForm } from './components/AuthForm';
 import { Navbar } from './components/Navbar';
 import { Settings } from './components/Settings';
 import { BookmarksView } from './components/BookmarksView'; // Import the BookmarksView component
+import { ForgotPassword } from "./components/ForgotPassword";
+import { ResetPassword } from "./components/ResetPassword";
 
 function App() {
   return (
@@ -23,7 +25,9 @@ function App() {
             <Route path="/login" element={<AuthForm type="login" />} />
             <Route path="/register" element={<AuthForm type="register" />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/bookmarks" element={<BookmarksView />} /> {/* Add the route for bookmarks */}
+            <Route path="/bookmarks" element={<BookmarksView />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
           </Routes>
         </div>
       </BrowserRouter>

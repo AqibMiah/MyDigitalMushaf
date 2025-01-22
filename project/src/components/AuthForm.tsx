@@ -48,7 +48,6 @@ export function AuthForm({ type }: AuthFormProps) {
         });
 
         if (signInError) {
-          // Handle specific error for invalid credentials
           if (signInError.status === 400 && signInError.message.includes("Invalid login credentials")) {
             throw new Error("Invalid email or password. Please try again.");
           }
