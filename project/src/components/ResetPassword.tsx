@@ -40,6 +40,10 @@ export function ResetPassword() {
     }
 
     try {
+      // Clear any existing session to avoid conflicts
+      await supabase.auth.signOut();
+
+      // Verify the OTP and reset the password
       const { error } = await supabase.auth.verifyOtp({
         token,
         type: "recovery",
