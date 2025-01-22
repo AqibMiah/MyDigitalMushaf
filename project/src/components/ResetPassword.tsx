@@ -11,21 +11,29 @@ export function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const accessToken = query.get("access_token");
 
     if (accessToken) {
+      console.log("Access Token:", accessToken); // Debugging log
       supabase.auth.setSession({ access_token: accessToken })
         .then(({ error }) => {
           if (error) {
+            console.error("Error setting session:", error);
             setError("Invalid or expired session. Please try again.");
           }
         })
-        .catch((err) => setError("Failed to authenticate. Please try again."));
+        .catch((err) => {
+          console.error("Error setting session:", err);
+          setError("Failed to authenticate. Please try again.");
+        })
+        .finally(() => setLoading(false));
     } else {
-      setError("Auth session missing!");
+      setError("Auth session missing! Check the reset password link.");
+      setLoading(false);
     }
   }, [location.search]);
 
@@ -45,11 +53,15 @@ export function ResetPassword() {
       }
 
       setSuccess(true);
-      setTimeout(() => navigate("/login"), 2000); // Redirect after success
+      setTimeout(() => navigate("/login"), 2000);
     } catch (err: any) {
       setError(err.message || "Failed to reset password. Please try again.");
     }
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
