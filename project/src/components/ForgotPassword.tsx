@@ -16,15 +16,17 @@ export function ForgotPassword() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: "https://www.mydigitalmushaf.com/reset-password", // Update to your correct URL
       });
 
       if (error) {
+        console.error("Error sending reset email:", error.message);
         throw new Error(error.message);
       }
 
       setMessage("Password reset email sent. Check your inbox.");
     } catch (err: any) {
+      console.error("Unexpected error:", err.message);
       setError(err.message || "Failed to send password reset email. Please try again.");
     }
   };
