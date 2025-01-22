@@ -10,6 +10,7 @@ import { Settings } from './components/Settings';
 import { BookmarksView } from './components/BookmarksView'; // Import the BookmarksView component
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
+import MemorisationTester from "./components/MemorisationTester";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
             <Route path="/bookmarks" element={<BookmarksView />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/memorisation-tester" element={<MemorisationTester />} />
           </Routes>
         </div>
       </BrowserRouter>

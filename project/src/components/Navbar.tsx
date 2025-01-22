@@ -1,17 +1,15 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
-import { Book, LogOut, User, Settings, Menu, Bookmark } from "lucide-react";
-import { Button } from "@/components/ui/button"; // Assuming shadcn's Button component
+import { Book, LogOut, User, Settings, Menu, Bookmark, FileText } from "lucide-react"; // Added FileText for memorisation tester icon
+import { Button } from "@/components/ui/button";
 
 export function Navbar() {
   const navigate = useNavigate();
   const [user, setUser] = React.useState<any>(null);
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
   React.useEffect(() => {
-    // Check for existing session
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -19,21 +17,17 @@ export function Navbar() {
       } catch (error) {
         console.error("Error checking session:", error);
         setUser(null);
-      } finally {
-        setIsLoading(false);
       }
     };
 
     checkSession();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user || null);
       }
     );
 
-    // Cleanup subscription
     return () => {
       subscription.unsubscribe();
     };
@@ -44,137 +38,128 @@ export function Navbar() {
       await supabase.auth.signOut();
       setUser(null);
       navigate("/login");
-      setIsMenuOpen(false);
     } catch (error) {
       console.error("Error signing out:", error);
     }
   };
 
-  if (isLoading) {
-    return (
+  return (
+    <>
       <nav className="bg-gray-50 shadow-md">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center space-x-2">
-              <Book className="h-5 w-5 sm:h-6 sm:w-6 text-gray-800" />
+            {/* Sidebar menu button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="flex items-center"
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+
+            {/* Centered title */}
+            <Link to="/" className="flex-grow text-center">
               <span className="font-bold text-lg sm:text-xl text-gray-800">
                 My Digital Mushaf
               </span>
             </Link>
+
+            {/* Right-aligned user info */}
+            <div className="flex items-center space-x-4">
+              {user ? (
+                <>
+                  <span className="flex items-center text-sm text-gray-800">
+                    <User className="h-4 w-4 mr-1" />
+                    {user.user_metadata?.username}
+                  </span>
+                  <Button
+                    variant="default"
+                    className="flex items-center gap-2"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <div className="space-x-4">
+                  <Link to="/login">
+                    <Button variant="ghost">Login</Button>
+                  </Link>
+                  <Link to="/register">
+                    <Button variant="default">Register</Button>
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
-    );
-  }
 
-  return (
-    <nav className="bg-gray-50 shadow-md">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
-          <Link to="/" className="flex items-center space-x-2">
-            <Book className="h-5 w-5 sm:h-6 sm:w-6 text-gray-800" />
-            <span className="font-bold text-lg sm:text-xl text-gray-800">
-              My Digital Mushaf
-            </span>
-          </Link>
-
-          {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden"
-          >
-            <Menu className="h-6 w-6" />
-          </Button>
-
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-4">
-            {user ? (
-              <>
-                <span className="flex items-center text-sm text-gray-800">
-                  <User className="h-4 w-4 mr-1" />
-                  {user.user_metadata?.username}
-                </span>
-                <Link to="/bookmarks">
-                  <Button variant="ghost" className="flex items-center gap-2">
-                    <Bookmark className="h-4 w-4" />
-                    Bookmarks
-                  </Button>
-                </Link>
-                <Link to="/settings">
-                  <Button variant="ghost" className="flex items-center gap-2">
-                    <Settings className="h-4 w-4" />
-                    Settings
-                  </Button>
-                </Link>
-                <Button
-                  variant="default"
-                  className="flex items-center gap-2"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="h-4 w-4" />
-                  Logout
-                </Button>
-              </>
-            ) : (
-              <div className="space-x-4">
-                <Link to="/login">
-                  <Button variant="ghost">Login</Button>
-                </Link>
-                <Link to="/register">
-                  <Button variant="default">Register</Button>
-                </Link>
-              </div>
-            )}
+      {/* Sidebar */}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 transform ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } transition-transform duration-300 bg-gray-100 w-56 shadow-lg`}
+      >
+        {/* Sidebar content */}
+        <div className="h-full flex flex-col py-6 px-4">
+          {/* Centered Menu Title */}
+          <h2 className="text-lg font-bold text-gray-800 text-center mb-8">
+            Menu
+          </h2>
+          <div className="space-y-4">
+            <Link
+              to="/bookmarks"
+              onClick={() => setIsSidebarOpen(false)}
+              className="w-full"
+            >
+              <Button
+                variant="ghost"
+                className="flex items-center gap-4 w-full pl-4 justify-start text-left hover:bg-gray-200 hover:text-gray-900"
+              >
+                <Bookmark className="h-5 w-5" />
+                <span className="text-gray-800">Bookmarks</span>
+              </Button>
+            </Link>
+            <Link
+              to="/settings"
+              onClick={() => setIsSidebarOpen(false)}
+              className="w-full"
+            >
+              <Button
+                variant="ghost"
+                className="flex items-center gap-4 w-full pl-4 justify-start text-left hover:bg-gray-200 hover:text-gray-900"
+              >
+                <Settings className="h-5 w-5" />
+                <span className="text-gray-800">Settings</span>
+              </Button>
+            </Link>
+            <Link
+              to="/memorisation-tester"
+              onClick={() => setIsSidebarOpen(false)}
+              className="w-full"
+            >
+              <Button
+                variant="ghost"
+                className="flex items-center gap-4 w-full pl-4 justify-start text-left hover:bg-gray-200 hover:text-gray-900"
+              >
+                <FileText className="h-5 w-5" />
+                <span className="text-gray-800">Memorisation Tester</span>
+              </Button>
+            </Link>
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        <div className={`md:hidden ${isMenuOpen ? "block" : "hidden"} pb-4`}>
-          {user ? (
-            <div className="space-y-2">
-              <span className="flex items-center text-sm text-gray-800">
-                <User className="h-4 w-4 mr-1" />
-                {user.user_metadata?.username}
-              </span>
-              <Link to="/bookmarks" onClick={() => setIsMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start flex items-center gap-2">
-                  <Bookmark className="h-4 w-4" />
-                  Bookmarks
-                </Button>
-              </Link>
-              <Link to="/settings" onClick={() => setIsMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </Button>
-              </Link>
-              <Button
-                variant="default"
-                className="w-full justify-start flex items-center gap-2"
-                onClick={handleLogout}
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                <Button variant="ghost" className="w-full">
-                  Login
-                </Button>
-              </Link>
-              <Link to="/register" onClick={() => setIsMenuOpen(false)}>
-                <Button variant="default" className="w-full">
-                  Register
-                </Button>
-              </Link>
-            </div>
-          )}
-        </div>
       </div>
-    </nav>
+
+      {/* Overlay */}
+      {isSidebarOpen && (
+        <div
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+        ></div>
+      )}
+    </>
   );
 }

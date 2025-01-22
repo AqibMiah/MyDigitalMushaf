@@ -83,7 +83,12 @@ export function SurahView() {
 
   const toggleBookmark = async (ayahNumber: number) => {
     const user = await fetchUserSession();
-    if (!user) return;
+    if (!user) {
+      // Redirect to login page if not logged in
+      navigate("/login");
+      return;
+    }
+
 
     try {
       const { data: existingBookmark, error: fetchError } = await supabase
