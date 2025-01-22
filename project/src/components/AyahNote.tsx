@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
-import { ChevronLeft, ChevronRight, Save, AlertCircle, Volume2, Bookmark } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, AlertCircle, Volume2, Bookmark, Pause, Play, Square } from "lucide-react";
 import type { Ayah } from "../types";
 import { Button } from "@/components/ui/button";
 
@@ -16,6 +16,7 @@ export function AyahNote() {
   const [totalAyahs, setTotalAyahs] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
 
   const fetchUserSession = async () => {
     try {
@@ -177,12 +178,39 @@ export function AyahNote() {
         }
         const newAudio = new Audio(data.data.audio);
         setAudio(newAudio);
+        setIsPaused(false);
         newAudio.play();
+        newAudio.onended = () => {
+          setIsPaused(false);
+        };
       } else {
         console.error("Recitation not available for this Ayah");
       }
     } catch (error) {
       console.error("Error fetching recitation:", error);
+    }
+  };
+
+  const resumeAudio = () => {
+    if (audio) {
+      audio.play();
+      setIsPaused(false); // Update state to reflect that audio is playing
+    }
+  };
+
+  const pauseAudio = () => {
+    if (audio) {
+      audio.pause();
+      setIsPaused(true);
+    }
+  };
+
+  const stopAudio = () => {
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0; // Reset to the beginning
+      setAudio(null);
+      setIsPaused(false);
     }
   };
 
@@ -277,7 +305,9 @@ export function AyahNote() {
         </div>
         <div className="bg-white p-6 rounded-lg">
           <div className="mb-4 flex items-center justify-between">
-            <span className="text-gray-800 font-bold">{ayah.numberInSurah}</span>
+            <span className="text-gray-800 font-bold">
+              Surah {surahNumber}, Ayah {ayah?.numberInSurah}
+            </span>
             <div className="flex items-center gap-4">
               <button
                 onClick={toggleBookmark}
@@ -289,15 +319,41 @@ export function AyahNote() {
               >
                 <Bookmark size={20} />
               </button>
-              <button
-                onClick={playRecitation}
-                className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
-              >
-                <Volume2 size={20} />
-              </button>
+              {audio ? (
+                <>
+                  {isPaused ? (
+                    <button
+                      onClick={resumeAudio}
+                      className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+                    >
+                      <Play size={20} />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={pauseAudio}
+                      className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+                    >
+                      <Pause size={20} />
+                    </button>
+                  )}
+                  <button
+                    onClick={stopAudio}
+                    className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+                  >
+                    <Square size={20} />
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={playRecitation}
+                  className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+                >
+                  <Volume2 size={20} />
+                </button>
+              )}
             </div>
           </div>
-          <p className="text-2xl text-right mb-4 font-arabic text-gray-800">{ayah.text}</p>
+          <p className="text-2xl text-right mb-4 font-arabic text-gray-800">{ayah?.text}</p>
         </div>
         <div className="bg-white p-6 rounded-lg">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Your Notes</h2>

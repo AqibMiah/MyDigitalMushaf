@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Book, Volume2 } from "lucide-react";
+import { Book, Volume2, Pause, Square } from "lucide-react"; // Import Pause and Square icons
 
 export default function MemorisationTester() {
   const [surah, setSurah] = useState<string>("");
@@ -15,6 +15,8 @@ export default function MemorisationTester() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null); // Reference to the audio object
+  const [isPlaying, setIsPlaying] = useState(false); // To track if the audio is playing
+  const [isPaused, setIsPaused] = useState(false); // To track if the audio is paused
 
   const fetchRandomAyah = async () => {
     if (!surah.trim() && !juz.trim()) {
@@ -26,6 +28,8 @@ export default function MemorisationTester() {
     if (audio) {
       audio.pause();
       setAudio(null);
+      setIsPlaying(false);
+      setIsPaused(false);
     }
 
     setError(null);
@@ -111,16 +115,43 @@ export default function MemorisationTester() {
 
         const newAudio = new Audio(ayah.audio);
         setAudio(newAudio); // Save the new audio instance
-        await newAudio.play().catch((error) => {
+
+        // If paused, resume from the current time
+        if (isPaused && audio) {
+          newAudio.currentTime = audio.currentTime; // Resume from the paused position
+        }
+
+        newAudio.play().catch((error) => {
           console.error("Error playing audio:", error.message);
           setError("Failed to play the audio. Please try again.");
         });
+
+        setIsPlaying(true); // Mark as playing
+        setIsPaused(false); // Reset paused state
       } catch (error: any) {
         console.error("Audio fetching error:", error.message);
         setError("An error occurred while fetching the audio.");
       }
     } else {
       setError("Audio is not available for this Ayah.");
+    }
+  };
+
+  const pauseAudio = () => {
+    if (audio) {
+      audio.pause();
+      setIsPlaying(false);
+      setIsPaused(true); // Mark as paused
+    }
+  };
+
+  const stopAudio = () => {
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0; // Reset audio to start
+      setAudio(null);
+      setIsPlaying(false);
+      setIsPaused(false);
     }
   };
 
@@ -183,13 +214,42 @@ export default function MemorisationTester() {
             <p className="text-gray-800 text-lg text-right" dir="rtl">
               {ayah.text}
             </p>
-            <Button
-              onClick={playAudio}
-              className="flex items-center gap-2 mt-4"
-            >
-              <Volume2 className="h-5 w-5" />
-              Play Audio
-            </Button>
+            <div className="flex gap-4 justify-center mt-4">
+              {!isPlaying && !isPaused ? (
+                <Button
+                  onClick={playAudio}
+                  className="flex items-center gap-2"
+                >
+                  <Volume2 className="h-5 w-5" />
+                  Play Audio
+                </Button>
+              ) : isPaused ? (
+                <Button
+                  onClick={playAudio}
+                  className="flex items-center gap-2"
+                >
+                  <Volume2 className="h-5 w-5" />
+                  Resume Audio
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    onClick={pauseAudio}
+                    className="flex items-center gap-2"
+                  >
+                    <Pause className="h-5 w-5" />
+                    Pause Audio
+                  </Button>
+                  <Button
+                    onClick={stopAudio}
+                    className="flex items-center gap-2"
+                  >
+                    <Square className="h-5 w-5" /> {/* Square icon used for stop */}
+                    Stop Audio
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

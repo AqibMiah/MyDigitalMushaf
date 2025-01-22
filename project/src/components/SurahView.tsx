@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, BookOpen, Edit, Volume2, Bookmark } from "lucide-react";
-import type { Ayah } from "../types";
+import { ChevronLeft, ChevronRight, BookOpen, Edit, Volume2, Bookmark, Pause, Play, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "../supabase";
 
 export function SurahView() {
   const { number } = useParams();
   const navigate = useNavigate();
-  const [ayahs, setAyahs] = useState<Ayah[]>([]);
+  const [ayahs, setAyahs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [activeAyah, setActiveAyah] = useState<number | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
   const [bookmarks, setBookmarks] = useState<number[]>([]);
+  const [surahName, setSurahName] = useState<string>("");
 
-  // Fetch User Session
   const fetchUserSession = async () => {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
@@ -29,15 +30,18 @@ export function SurahView() {
   };
 
   useEffect(() => {
-    const fetchAyahs = async () => {
+    const fetchSurahDetails = async () => {
       setLoading(true);
       try {
-        // Fetch Surah Ayahs
-        const response = await fetch(`https://api.alquran.cloud/v1/surah/${number}`);
-        const arabicData = await response.json();
-        setAyahs(arabicData.data.ayahs);
+        // Fetch Surah details to get the name in English
+        const surahResponse = await fetch(`https://api.alquran.cloud/v1/surah/${number}`);
+        const surahData = await surahResponse.json();
+        if (surahData.code === 200) {
+          setSurahName(`${surahData.data.englishName} (${surahData.data.number})`);
+          setAyahs(surahData.data.ayahs);
+        }
 
-        // Fetch Bookmarks
+        // Fetch user bookmarks
         const user = await fetchUserSession();
         if (user) {
           const { data: userBookmarks, error } = await supabase
@@ -52,12 +56,12 @@ export function SurahView() {
           }
         }
       } catch (error) {
-        console.error("Error fetching surah or bookmarks:", error);
+        console.error("Error fetching surah details or bookmarks:", error);
       }
       setLoading(false);
     };
 
-    fetchAyahs();
+    fetchSurahDetails();
   }, [number]);
 
   const playRecitation = async (ayahNumber: number) => {
@@ -72,7 +76,13 @@ export function SurahView() {
         }
         const newAudio = new Audio(data.data.audio);
         setAudio(newAudio);
+        setActiveAyah(ayahNumber);
+        setIsPaused(false);
         newAudio.play();
+        newAudio.onended = () => {
+          setActiveAyah(null);
+          setIsPaused(false);
+        };
       } else {
         console.error("Recitation not available for this Ayah");
       }
@@ -81,14 +91,36 @@ export function SurahView() {
     }
   };
 
+  const resumeAudio = () => {
+    if (audio) {
+      audio.play();
+      setIsPaused(false);
+    }
+  };
+
+  const pauseAudio = () => {
+    if (audio) {
+      audio.pause();
+      setIsPaused(true);
+    }
+  };
+
+  const stopAudio = () => {
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0; // Reset to the beginning
+      setAudio(null);
+      setActiveAyah(null);
+      setIsPaused(false);
+    }
+  };
+
   const toggleBookmark = async (ayahNumber: number) => {
     const user = await fetchUserSession();
     if (!user) {
-      // Redirect to login page if not logged in
       navigate("/login");
       return;
     }
-
 
     try {
       const { data: existingBookmark, error: fetchError } = await supabase
@@ -105,7 +137,6 @@ export function SurahView() {
       }
 
       if (existingBookmark && existingBookmark.length > 0) {
-        // Bookmark exists: remove it
         const { error: deleteError } = await supabase
           .from("bookmarks")
           .delete()
@@ -117,7 +148,6 @@ export function SurahView() {
           console.log("Bookmark removed.");
         }
       } else {
-        // Bookmark does not exist: add it
         const { error: insertError } = await supabase.from("bookmarks").insert({
           user_id: user.id,
           surah_number: Number(number),
@@ -158,33 +188,12 @@ export function SurahView() {
           </Button>
         </div>
 
-        {/* Next/Previous Surah Navigation */}
-        <div className="flex justify-between items-center mb-8">
-          <Button
-            variant="ghost"
-            className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800"
-            onClick={() => navigate(`/surah/${Number(number) - 1}`)}
-            disabled={Number(number) <= 1}
-          >
-            <ChevronLeft size={20} />
-            Previous Surah
-          </Button>
-          <Button
-            variant="ghost"
-            className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800"
-            onClick={() => navigate(`/surah/${Number(number) + 1}`)}
-            disabled={Number(number) >= 114}
-          >
-            Next Surah
-            <ChevronRight size={20} />
-          </Button>
-        </div>
-
         {/* Surah Content */}
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">{surahName}</h2>
         <div className="space-y-8">
           {ayahs.map((ayah) => (
             <div key={ayah.number} className="relative">
-              {/* Bookmark, Edit, and Play Icons */}
+              {/* Bookmark, Edit, and Audio Controls */}
               <div className="absolute top-0 right-0 flex gap-2">
                 <button
                   onClick={() => toggleBookmark(ayah.numberInSurah)}
@@ -204,21 +213,45 @@ export function SurahView() {
                 >
                   <Edit size={20} />
                 </button>
-                <button
-                  onClick={() => playRecitation(ayah.numberInSurah)}
-                  className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
-                >
-                  <Volume2 size={20} />
-                </button>
+                {activeAyah === ayah.numberInSurah ? (
+                  <>
+                    {isPaused ? (
+                      <button
+                        onClick={resumeAudio}
+                        className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+                      >
+                        <Play size={20} />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={pauseAudio}
+                        className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+                      >
+                        <Pause size={20} />
+                      </button>
+                    )}
+                    <button
+                      onClick={stopAudio}
+                      className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+                    >
+                      <Square size={20} />
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => playRecitation(ayah.numberInSurah)}
+                    className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+                  >
+                    <Volume2 size={20} />
+                  </button>
+                )}
               </div>
 
+              {/* Ayah Text */}
               <div className="py-4">
-                {/* Ayah Number */}
                 <span className="block text-gray-800 font-bold mb-2">
-                  {ayah.numberInSurah}
+                  {surahName}, Ayah {ayah.numberInSurah}
                 </span>
-
-                {/* Arabic Text */}
                 <p className="text-2xl text-right mb-2 font-arabic text-gray-800">
                   {ayah.text}
                 </p>

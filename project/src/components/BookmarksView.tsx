@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Volume2, Bookmark, Edit, BookOpen } from "lucide-react";
+import { ChevronLeft, Volume2, Bookmark, Edit, BookOpen, Pause, Play, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "../supabase";
 
@@ -10,11 +10,19 @@ interface Bookmark {
   text: string;
 }
 
+interface Surah {
+  number: number;
+  englishName: string;
+}
+
 export function BookmarksView() {
   const navigate = useNavigate();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [activeBookmark, setActiveBookmark] = useState<Bookmark | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [surahNames, setSurahNames] = useState<Record<number, string>>({});
 
   const fetchUserSession = async () => {
     try {
@@ -31,6 +39,24 @@ export function BookmarksView() {
   };
 
   useEffect(() => {
+    const fetchSurahNames = async () => {
+      try {
+        const response = await fetch(`https://api.alquran.cloud/v1/surah`);
+        const data = await response.json();
+        if (data.code === 200 && data.data) {
+          const surahNameMap: Record<number, string> = {};
+          data.data.forEach((surah: Surah) => {
+            surahNameMap[surah.number] = surah.englishName;
+          });
+          setSurahNames(surahNameMap);
+        } else {
+          console.error("Failed to fetch Surah names");
+        }
+      } catch (error) {
+        console.error("Error fetching Surah names:", error);
+      }
+    };
+
     const fetchBookmarks = async () => {
       setLoading(true);
       const user = await fetchUserSession();
@@ -70,13 +96,14 @@ export function BookmarksView() {
       }
     };
 
+    fetchSurahNames();
     fetchBookmarks();
   }, [navigate]);
 
-  const playRecitation = async (surahNumber: number, ayahNumber: number) => {
+  const playRecitation = async (bookmark: Bookmark) => {
     try {
       const response = await fetch(
-        `https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}/ar.alafasy`
+        `https://api.alquran.cloud/v1/ayah/${bookmark.surah_number}:${bookmark.ayah_number}/ar.alafasy`
       );
       const data = await response.json();
       if (data.code === 200 && data.data.audio) {
@@ -85,12 +112,42 @@ export function BookmarksView() {
         }
         const newAudio = new Audio(data.data.audio);
         setAudio(newAudio);
+        setActiveBookmark(bookmark);
+        setIsPaused(false);
         newAudio.play();
+        newAudio.onended = () => {
+          setActiveBookmark(null);
+          setIsPaused(false);
+        };
       } else {
         console.error("Recitation not available for this Ayah");
       }
     } catch (error) {
       console.error("Error fetching recitation:", error);
+    }
+  };
+
+  const pauseAudio = () => {
+    if (audio) {
+      audio.pause();
+      setIsPaused(true);
+    }
+  };
+
+  const resumeAudio = () => {
+    if (audio) {
+      audio.play();
+      setIsPaused(false);
+    }
+  };
+
+  const stopAudio = () => {
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+      setAudio(null);
+      setActiveBookmark(null);
+      setIsPaused(false);
     }
   };
 
@@ -178,22 +235,48 @@ export function BookmarksView() {
                     <Edit size={20} />
                   </button>
 
-                  {/* Play Recitation */}
-                  <button
-                    onClick={() =>
-                      playRecitation(bookmark.surah_number, bookmark.ayah_number)
-                    }
-                    className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
-                  >
-                    <Volume2 size={20} />
-                  </button>
+                  {/* Audio Controls */}
+                  {activeBookmark &&
+                  activeBookmark.surah_number === bookmark.surah_number &&
+                  activeBookmark.ayah_number === bookmark.ayah_number ? (
+                    <>
+                      {isPaused ? (
+                        <button
+                          onClick={resumeAudio}
+                          className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+                        >
+                          <Play size={20} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={pauseAudio}
+                          className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+                        >
+                          <Pause size={20} />
+                        </button>
+                      )}
+                      <button
+                        onClick={stopAudio}
+                        className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+                      >
+                        <Square size={20} />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => playRecitation(bookmark)}
+                      className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+                    >
+                      <Volume2 size={20} />
+                    </button>
+                  )}
                 </div>
 
                 {/* Content */}
                 <div className="py-4">
                   {/* Surah and Ayah Number */}
                   <span className="block text-gray-800 font-bold mb-2">
-                    Surah {bookmark.surah_number}, Ayah {bookmark.ayah_number}
+                    {surahNames[bookmark.surah_number]} ({bookmark.surah_number}), Ayah {bookmark.ayah_number}
                   </span>
 
                   {/* Arabic Text */}
