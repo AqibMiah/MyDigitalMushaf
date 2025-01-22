@@ -12,32 +12,21 @@ export function ResetPassword() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState("");
 
   useEffect(() => {
-    const hash = location.hash.substring(1); // Remove the '#' at the start of the fragment
-    const params = new URLSearchParams(hash); // Parse the fragment as query-like parameters
-    const accessToken = params.get("access_token"); // Get the access_token
+    const query = new URLSearchParams(location.search);
+    const tokenFromUrl = query.get("token");
+    const type = query.get("type");
 
-    if (!accessToken) {
-      setError("Invalid reset link. Please request a new password reset email.");
+    if (tokenFromUrl && type === "recovery") {
+      setToken(tokenFromUrl);
       setLoading(false);
-      return;
+    } else {
+      setError("Invalid or expired session. Please request a new reset link.");
+      setLoading(false);
     }
-
-    supabase.auth
-      .setSession({ access_token: accessToken })
-      .then(({ error }) => {
-        if (error) {
-          console.error("Error setting session:", error);
-          setError("Invalid or expired session. Please request a new reset link.");
-        }
-      })
-      .catch((err) => {
-        console.error("Error setting session:", err);
-        setError("Failed to authenticate. Please try again.");
-      })
-      .finally(() => setLoading(false));
-  }, [location.hash]);
+  }, [location.search]);
 
   const handleResetPassword = async () => {
     if (newPassword !== confirmPassword) {
@@ -45,8 +34,15 @@ export function ResetPassword() {
       return;
     }
 
+    if (!token) {
+      setError("Invalid or expired session. Please request a new reset link.");
+      return;
+    }
+
     try {
-      const { error } = await supabase.auth.updateUser({
+      const { error } = await supabase.auth.verifyOtp({
+        token,
+        type: "recovery",
         password: newPassword,
       });
 
@@ -62,11 +58,7 @@ export function ResetPassword() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-600">Loading...</div>
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
   return (
