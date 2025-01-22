@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
-import { ChevronLeft, ChevronRight, Save, AlertCircle, Volume2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, AlertCircle, Volume2, Bookmark } from "lucide-react";
 import type { Ayah } from "../types";
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +10,7 @@ export function AyahNote() {
   const navigate = useNavigate();
   const [ayah, setAyah] = useState<Ayah | null>(null);
   const [note, setNote] = useState("");
+  const [isBookmarked, setIsBookmarked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [totalAyahs, setTotalAyahs] = useState(0);
@@ -48,18 +49,36 @@ export function AyahNote() {
 
         const user = await fetchUserSession();
         if (user) {
+          // Fetch Note
           const { data: noteData, error: noteError } = await supabase
             .from("notes")
             .select("content")
             .eq("user_id", user.id)
             .eq("surah_number", Number(surahNumber))
-            .eq("ayah_number", Number(ayahNumber))
-            .single();
+            .eq("ayah_number", Number(ayahNumber));
 
           if (noteError) {
             console.error("Error fetching note:", noteError.message);
+          } else if (noteData && noteData.length > 0) {
+            setNote(noteData[0].content || ""); // Handle multiple rows safely
           } else {
-            setNote(noteData?.content || "");
+            setNote(""); // No note found
+          }
+
+          // Fetch Bookmark
+          const { data: bookmarkData, error: bookmarkError } = await supabase
+            .from("bookmarks")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("surah_number", Number(surahNumber))
+            .eq("ayah_number", Number(ayahNumber));
+
+          if (bookmarkError) {
+            console.error("Error fetching bookmark:", bookmarkError.message);
+          } else if (bookmarkData && bookmarkData.length > 0) {
+            setIsBookmarked(true);
+          } else {
+            setIsBookmarked(false); // No bookmark found
           }
         } else {
           navigate("/login");
@@ -103,6 +122,46 @@ export function AyahNote() {
       setError("Failed to save the note. Please try again.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleBookmark = async () => {
+    const user = await fetchUserSession();
+    if (!user) return;
+
+    try {
+      if (isBookmarked) {
+        // Remove Bookmark
+        const { error } = await supabase
+          .from("bookmarks")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("surah_number", Number(surahNumber))
+          .eq("ayah_number", Number(ayahNumber));
+
+        if (error) {
+          console.error("Error removing bookmark:", error.message);
+          throw error;
+        }
+
+        setIsBookmarked(false);
+      } else {
+        // Add Bookmark
+        const { error } = await supabase.from("bookmarks").insert({
+          user_id: user.id,
+          surah_number: Number(surahNumber),
+          ayah_number: Number(ayahNumber),
+        });
+
+        if (error) {
+          console.error("Error adding bookmark:", error.message);
+          throw error;
+        }
+
+        setIsBookmarked(true);
+      }
+    } catch (err: any) {
+      console.error("Error toggling bookmark:", err.message);
     }
   };
 
@@ -219,12 +278,24 @@ export function AyahNote() {
         <div className="bg-white p-6 rounded-lg">
           <div className="mb-4 flex items-center justify-between">
             <span className="text-gray-800 font-bold">{ayah.numberInSurah}</span>
-            <button
-              onClick={playRecitation}
-              className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
-            >
-              <Volume2 size={20} />
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={toggleBookmark}
+                className={`p-2 rounded-full ${
+                  isBookmarked
+                    ? "bg-yellow-300 text-gray-800"
+                    : "bg-gray-200 hover:bg-gray-300 text-gray-800"
+                }`}
+              >
+                <Bookmark size={20} />
+              </button>
+              <button
+                onClick={playRecitation}
+                className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-800"
+              >
+                <Volume2 size={20} />
+              </button>
+            </div>
           </div>
           <p className="text-2xl text-right mb-4 font-arabic text-gray-800">{ayah.text}</p>
         </div>

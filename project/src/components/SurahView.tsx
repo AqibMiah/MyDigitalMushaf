@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, BookOpen, Edit, Volume2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, BookOpen, Edit, Volume2, Bookmark } from "lucide-react";
 import type { Ayah } from "../types";
 import { Button } from "@/components/ui/button";
+import { supabase } from "../supabase";
 
 export function SurahView() {
   const { number } = useParams();
@@ -10,16 +11,48 @@ export function SurahView() {
   const [ayahs, setAyahs] = useState<Ayah[]>([]);
   const [loading, setLoading] = useState(true);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [bookmarks, setBookmarks] = useState<number[]>([]);
+
+  // Fetch User Session
+  const fetchUserSession = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session) {
+        console.warn("No session found. Redirecting to login...");
+        return null;
+      }
+      return session.user;
+    } catch (err: any) {
+      console.error("Unexpected error fetching session:", err.message);
+      return null;
+    }
+  };
 
   useEffect(() => {
     const fetchAyahs = async () => {
       setLoading(true);
       try {
+        // Fetch Surah Ayahs
         const response = await fetch(`https://api.alquran.cloud/v1/surah/${number}`);
         const arabicData = await response.json();
         setAyahs(arabicData.data.ayahs);
+
+        // Fetch Bookmarks
+        const user = await fetchUserSession();
+        if (user) {
+          const { data: userBookmarks, error } = await supabase
+            .from("bookmarks")
+            .select("ayah_number")
+            .eq("user_id", user.id)
+            .eq("surah_number", Number(number));
+          if (error) {
+            console.error("Error fetching bookmarks:", error.message);
+          } else {
+            setBookmarks(userBookmarks.map((b) => b.ayah_number));
+          }
+        }
       } catch (error) {
-        console.error("Error fetching surah:", error);
+        console.error("Error fetching surah or bookmarks:", error);
       }
       setLoading(false);
     };
@@ -45,6 +78,55 @@ export function SurahView() {
       }
     } catch (error) {
       console.error("Error fetching recitation:", error);
+    }
+  };
+
+  const toggleBookmark = async (ayahNumber: number) => {
+    const user = await fetchUserSession();
+    if (!user) return;
+
+    try {
+      const { data: existingBookmark, error: fetchError } = await supabase
+        .from("bookmarks")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("surah_number", Number(number))
+        .eq("ayah_number", ayahNumber)
+        .limit(1);
+
+      if (fetchError) {
+        console.error("Error checking bookmark:", fetchError.message);
+        return;
+      }
+
+      if (existingBookmark && existingBookmark.length > 0) {
+        // Bookmark exists: remove it
+        const { error: deleteError } = await supabase
+          .from("bookmarks")
+          .delete()
+          .eq("id", existingBookmark[0].id);
+        if (deleteError) {
+          console.error("Error deleting bookmark:", deleteError.message);
+        } else {
+          setBookmarks((prev) => prev.filter((b) => b !== ayahNumber));
+          console.log("Bookmark removed.");
+        }
+      } else {
+        // Bookmark does not exist: add it
+        const { error: insertError } = await supabase.from("bookmarks").insert({
+          user_id: user.id,
+          surah_number: Number(number),
+          ayah_number: ayahNumber,
+        });
+        if (insertError) {
+          console.error("Error inserting bookmark:", insertError.message);
+        } else {
+          setBookmarks((prev) => [...prev, ayahNumber]);
+          console.log("Bookmark added.");
+        }
+      }
+    } catch (err) {
+      console.error("Unexpected error toggling bookmark:", err.message);
     }
   };
 
@@ -97,8 +179,18 @@ export function SurahView() {
         <div className="space-y-8">
           {ayahs.map((ayah) => (
             <div key={ayah.number} className="relative">
-              {/* Edit and Play Icons */}
+              {/* Bookmark, Edit, and Play Icons */}
               <div className="absolute top-0 right-0 flex gap-2">
+                <button
+                  onClick={() => toggleBookmark(ayah.numberInSurah)}
+                  className={`p-2 rounded-full ${
+                    bookmarks.includes(ayah.numberInSurah)
+                      ? "bg-yellow-300 text-gray-800"
+                      : "bg-gray-200 hover:bg-gray-300 text-gray-800"
+                  }`}
+                >
+                  <Bookmark size={20} />
+                </button>
                 <button
                   onClick={() =>
                     navigate(`/ayah/${number}/${ayah.numberInSurah}`)

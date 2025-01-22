@@ -1,7 +1,7 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../supabase';
-import { Book, LogOut, User, Settings, Menu } from 'lucide-react';
+import React from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "../supabase";
+import { Book, LogOut, User, Settings, Menu, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button"; // Assuming shadcn's Button component
 
 export function Navbar() {
@@ -17,7 +17,7 @@ export function Navbar() {
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user || null);
       } catch (error) {
-        console.error('Error checking session:', error);
+        console.error("Error checking session:", error);
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -27,9 +27,11 @@ export function Navbar() {
     checkSession();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null);
+      }
+    );
 
     // Cleanup subscription
     return () => {
@@ -41,10 +43,10 @@ export function Navbar() {
     try {
       await supabase.auth.signOut();
       setUser(null);
-      navigate('/login');
+      navigate("/login");
       setIsMenuOpen(false);
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error("Error signing out:", error);
     }
   };
 
@@ -55,7 +57,9 @@ export function Navbar() {
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center space-x-2">
               <Book className="h-5 w-5 sm:h-6 sm:w-6 text-gray-800" />
-              <span className="font-bold text-lg sm:text-xl text-gray-800">My Digital Mushaf</span>
+              <span className="font-bold text-lg sm:text-xl text-gray-800">
+                My Digital Mushaf
+              </span>
             </Link>
           </div>
         </div>
@@ -69,7 +73,9 @@ export function Navbar() {
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center space-x-2">
             <Book className="h-5 w-5 sm:h-6 sm:w-6 text-gray-800" />
-            <span className="font-bold text-lg sm:text-xl text-gray-800">My Digital Mushaf</span>
+            <span className="font-bold text-lg sm:text-xl text-gray-800">
+              My Digital Mushaf
+            </span>
           </Link>
 
           {/* Mobile Menu Button */}
@@ -90,6 +96,12 @@ export function Navbar() {
                   <User className="h-4 w-4 mr-1" />
                   {user.user_metadata?.username}
                 </span>
+                <Link to="/bookmarks">
+                  <Button variant="ghost" className="flex items-center gap-2">
+                    <Bookmark className="h-4 w-4" />
+                    Bookmarks
+                  </Button>
+                </Link>
                 <Link to="/settings">
                   <Button variant="ghost" className="flex items-center gap-2">
                     <Settings className="h-4 w-4" />
@@ -119,13 +131,19 @@ export function Navbar() {
         </div>
 
         {/* Mobile Menu */}
-        <div className={`md:hidden ${isMenuOpen ? 'block' : 'hidden'} pb-4`}>
+        <div className={`md:hidden ${isMenuOpen ? "block" : "hidden"} pb-4`}>
           {user ? (
             <div className="space-y-2">
               <span className="flex items-center text-sm text-gray-800">
                 <User className="h-4 w-4 mr-1" />
                 {user.user_metadata?.username}
               </span>
+              <Link to="/bookmarks" onClick={() => setIsMenuOpen(false)}>
+                <Button variant="ghost" className="w-full justify-start flex items-center gap-2">
+                  <Bookmark className="h-4 w-4" />
+                  Bookmarks
+                </Button>
+              </Link>
               <Link to="/settings" onClick={() => setIsMenuOpen(false)}>
                 <Button variant="ghost" className="w-full justify-start flex items-center gap-2">
                   <Settings className="h-4 w-4" />
@@ -144,10 +162,14 @@ export function Navbar() {
           ) : (
             <div className="space-y-2">
               <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                <Button variant="ghost" className="w-full">Login</Button>
+                <Button variant="ghost" className="w-full">
+                  Login
+                </Button>
               </Link>
               <Link to="/register" onClick={() => setIsMenuOpen(false)}>
-                <Button variant="default" className="w-full">Register</Button>
+                <Button variant="default" className="w-full">
+                  Register
+                </Button>
               </Link>
             </div>
           )}

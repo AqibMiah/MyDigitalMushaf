@@ -7,6 +7,7 @@ import { AyahNote } from './components/AyahNote';
 import { AuthForm } from './components/AuthForm';
 import { Navbar } from './components/Navbar';
 import { Settings } from './components/Settings';
+import { BookmarksView } from './components/BookmarksView'; // Import the BookmarksView component
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="/login" element={<AuthForm type="login" />} />
             <Route path="/register" element={<AuthForm type="register" />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/bookmarks" element={<BookmarksView />} /> {/* Add the route for bookmarks */}
           </Routes>
         </div>
       </BrowserRouter>
