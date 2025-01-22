@@ -19,9 +19,14 @@ export function ResetPassword() {
     const tokenFromUrl = query.get("token");
     const type = query.get("type");
 
+    // Ensure token is for recovery
     if (tokenFromUrl && type === "recovery") {
       setToken(tokenFromUrl);
-      setLoading(false);
+
+      // Log out any existing session to avoid conflicts
+      supabase.auth.signOut().finally(() => {
+        setLoading(false);
+      });
     } else {
       setError("Invalid or expired session. Please request a new reset link.");
       setLoading(false);
@@ -40,9 +45,6 @@ export function ResetPassword() {
     }
 
     try {
-      // Clear any existing session to avoid conflicts
-      await supabase.auth.signOut();
-
       // Verify the OTP and reset the password
       const { error } = await supabase.auth.verifyOtp({
         token,
