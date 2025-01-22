@@ -16,13 +16,14 @@ export function ResetPassword() {
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const accessToken = query.get("access_token");
-
+  
+    console.log("Query Params:", Array.from(query.entries())); // Debugging log
     if (!accessToken) {
       setError("Invalid reset link. Please request a new password reset email.");
       setLoading(false);
       return;
     }
-
+  
     supabase.auth.exchangeCodeForSession(accessToken)
       .then(({ error }) => {
         if (error) {
