@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
-import { Book, LogOut, User, Settings, Menu, Bookmark, FileText } from "lucide-react"; // Added FileText for memorisation tester icon
+import { Menu, Bookmark, FileText, Settings, LogOut, User, Book } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
@@ -141,10 +141,9 @@ export function Navbar() {
       <div
         className={`fixed inset-y-0 left-0 z-50 transform ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } transition-transform duration-300 bg-gray-100 w-64 shadow-lg sm:w-80`} // Adjusted for mobile screens
+        } transition-transform duration-300 bg-gray-100 w-64 shadow-lg sm:w-80`}
       >
         <div className="h-full flex flex-col py-6 px-4">
-          {/* Centered Menu Title */}
           <h2 className="text-lg font-bold text-gray-800 text-center mb-8">
             Menu
           </h2>
@@ -176,6 +175,19 @@ export function Navbar() {
               </Button>
             </Link>
             <Link
+              to="/mushaf"
+              onClick={() => setIsSidebarOpen(false)}
+              className="w-full"
+            >
+              <Button
+                variant="ghost"
+                className="flex items-center gap-4 w-full pl-4 justify-start text-left hover:bg-gray-200 hover:text-gray-900"
+              >
+                <Book className="h-5 w-5" />
+                <span className="text-gray-800">Mushaf</span>
+              </Button>
+            </Link>
+            <Link
               to="/settings"
               onClick={() => setIsSidebarOpen(false)}
               className="w-full"
@@ -192,7 +204,6 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Overlay */}
       {isSidebarOpen && (
         <div
           onClick={() => setIsSidebarOpen(false)}

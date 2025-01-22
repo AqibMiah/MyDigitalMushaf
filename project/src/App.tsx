@@ -11,6 +11,7 @@ import { BookmarksView } from './components/BookmarksView'; // Import the Bookma
 import { ForgotPassword } from "./components/ForgotPassword";
 import { ResetPassword } from "./components/ResetPassword";
 import MemorisationTester from "./components/MemorisationTester";
+import { QuranPageView } from "./components/QuranPageView";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/memorisation-tester" element={<MemorisationTester />} />
+            <Route path="/mushaf" element={<QuranPageView />} />
           </Routes>
         </div>
       </BrowserRouter>
