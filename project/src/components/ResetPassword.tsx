@@ -1,107 +1,87 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
-import { Lock } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export function ResetPassword() {
-  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
-  const handlePasswordReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage("");
-    setError("");
+  useEffect(() => {
+    const query = new URLSearchParams(location.search);
+    const accessToken = query.get("access_token");
 
-    if (password !== confirmPassword) {
+    if (accessToken) {
+      supabase.auth.setSession({ access_token: accessToken })
+        .then(({ error }) => {
+          if (error) {
+            setError("Invalid or expired session. Please try again.");
+          }
+        })
+        .catch((err) => setError("Failed to authenticate. Please try again."));
+    } else {
+      setError("Auth session missing!");
+    }
+  }, [location.search]);
+
+  const handleResetPassword = async () => {
+    if (newPassword !== confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
     try {
       const { error } = await supabase.auth.updateUser({
-        password,
+        password: newPassword,
       });
 
       if (error) {
-        throw new Error(error.message);
+        throw error;
       }
 
-      setMessage("Password reset successfully. You can now log in.");
+      setSuccess(true);
+      setTimeout(() => navigate("/login"), 2000); // Redirect after success
     } catch (err: any) {
       setError(err.message || "Failed to reset password. Please try again.");
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-800">Set New Password</h2>
-          <p className="text-gray-700 mt-2">
-            Enter your new password below.
-          </p>
-        </div>
-
-        {message && (
-          <div className="bg-green-100 text-green-700 p-3 rounded-lg mb-4 text-sm">
-            {message}
-          </div>
-        )}
-        {error && (
-          <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4 text-sm">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handlePasswordReset} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-800 mb-2">
-              New Password
-            </label>
-            <div className="relative">
-              <Lock
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={20}
-              />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+        <h2 className="text-2xl font-bold mb-4 text-center">Set New Password</h2>
+        {error && <p className="text-red-500 mb-4">{error}</p>}
+        {success && <p className="text-green-500 mb-4">Password reset successful! Redirecting...</p>}
+        {!success && (
+          <>
+            <div className="mb-4">
+              <label className="block mb-2 font-medium">New Password</label>
               <Input
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Enter new password"
-                required
-                minLength={6}
-                className="pl-10"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-800 mb-2">
-              Confirm Password
-            </label>
-            <div className="relative">
-              <Lock
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={20}
-              />
+            <div className="mb-4">
+              <label className="block mb-2 font-medium">Confirm Password</label>
               <Input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm your password"
-                required
-                className="pl-10"
+                placeholder="Confirm new password"
               />
             </div>
-          </div>
-
-          <Button type="submit" className="w-full">
-            Reset Password
-          </Button>
-        </form>
+            <Button onClick={handleResetPassword} className="w-full">
+              Reset Password
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
