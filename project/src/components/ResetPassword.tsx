@@ -17,29 +17,34 @@ export function ResetPassword() {
     const query = new URLSearchParams(location.search);
     const accessToken = query.get("access_token");
 
-    if (accessToken) {
-      console.log("Access Token:", accessToken); // Debugging log
-      supabase.auth.setSession({ access_token: accessToken })
-        .then(({ error }) => {
-          if (error) {
-            console.error("Error setting session:", error);
-            setError("Invalid or expired session. Please try again.");
-          }
-        })
-        .catch((err) => {
-          console.error("Error setting session:", err);
-          setError("Failed to authenticate. Please try again.");
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setError("Auth session missing! Check the reset password link.");
+    if (!accessToken) {
+      setError("Invalid reset link. Please request a new password reset email.");
       setLoading(false);
+      return;
     }
+
+    supabase.auth.exchangeCodeForSession(accessToken)
+      .then(({ error }) => {
+        if (error) {
+          console.error("Error exchanging code for session:", error);
+          setError("Invalid or expired session. Please try again.");
+        }
+      })
+      .catch((err) => {
+        console.error("Error exchanging code for session:", err);
+        setError("Failed to authenticate. Please try again.");
+      })
+      .finally(() => setLoading(false));
   }, [location.search]);
 
   const handleResetPassword = async () => {
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -60,7 +65,11 @@ export function ResetPassword() {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-700">Loading...</div>
+      </div>
+    );
   }
 
   return (
