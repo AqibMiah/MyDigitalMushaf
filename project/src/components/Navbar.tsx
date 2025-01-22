@@ -123,7 +123,7 @@ export function Navbar() {
               </Button>
             </Link>
             <Link
-              to="/settings"
+              to="/memorisation-tester"
               onClick={() => setIsSidebarOpen(false)}
               className="w-full"
             >
@@ -134,6 +134,12 @@ export function Navbar() {
                 <FileText className="h-5 w-5" />
                 <span className="text-gray-800">Memorisation Tester</span>
               </Button>
+            </Link>
+            <Link
+              to="/settings"
+              onClick={() => setIsSidebarOpen(false)}
+              className="w-full"
+            >
               <Button
                 variant="ghost"
                 className="flex items-center gap-4 w-full pl-4 justify-start text-left hover:bg-gray-200 hover:text-gray-900"
@@ -142,13 +148,7 @@ export function Navbar() {
                 <span className="text-gray-800">Settings</span>
               </Button>
             </Link>
-            <Link
-              to="/memorisation-tester"
-              onClick={() => setIsSidebarOpen(false)}
-              className="w-full"
-            >
-              
-            </Link>
+            
           </div>
         </div>
       </div>
