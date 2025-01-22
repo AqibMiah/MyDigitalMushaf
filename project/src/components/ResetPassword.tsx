@@ -14,38 +14,32 @@ export function ResetPassword() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const query = new URLSearchParams(location.search);
+    const query = new URLSearchParams(location.hash.replace("#", "?")); // Handles fragments
     const accessToken = query.get("access_token");
-  
-    console.log("Query Params:", Array.from(query.entries())); // Debugging log
+
     if (!accessToken) {
       setError("Invalid reset link. Please request a new password reset email.");
       setLoading(false);
       return;
     }
-  
-    supabase.auth.exchangeCodeForSession(accessToken)
+
+    supabase.auth.setSession({ access_token: accessToken })
       .then(({ error }) => {
         if (error) {
-          console.error("Error exchanging code for session:", error);
-          setError("Invalid or expired session. Please try again.");
+          console.error("Error setting session:", error);
+          setError("Invalid or expired session. Please request a new reset link.");
         }
       })
       .catch((err) => {
-        console.error("Error exchanging code for session:", err);
+        console.error("Error setting session:", err);
         setError("Failed to authenticate. Please try again.");
       })
       .finally(() => setLoading(false));
-  }, [location.search]);
+  }, [location.hash]);
 
   const handleResetPassword = async () => {
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match.");
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -59,7 +53,7 @@ export function ResetPassword() {
       }
 
       setSuccess(true);
-      setTimeout(() => navigate("/login"), 2000);
+      setTimeout(() => navigate("/login"), 2000); // Redirect to login after success
     } catch (err: any) {
       setError(err.message || "Failed to reset password. Please try again.");
     }
@@ -68,7 +62,7 @@ export function ResetPassword() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-700">Loading...</div>
+        <p>Loading...</p>
       </div>
     );
   }
@@ -78,7 +72,11 @@ export function ResetPassword() {
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
         <h2 className="text-2xl font-bold mb-4 text-center">Set New Password</h2>
         {error && <p className="text-red-500 mb-4">{error}</p>}
-        {success && <p className="text-green-500 mb-4">Password reset successful! Redirecting...</p>}
+        {success && (
+          <p className="text-green-500 mb-4">
+            Password reset successful! Redirecting to login...
+          </p>
+        )}
         {!success && (
           <>
             <div className="mb-4">
