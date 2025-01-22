@@ -47,7 +47,7 @@ export function Navbar() {
     <>
       <nav className="bg-gray-50 shadow-md">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex items-center h-16">
             {/* Sidebar menu button */}
             <Button
               variant="ghost"
@@ -58,15 +58,15 @@ export function Navbar() {
               <Menu className="h-6 w-6" />
             </Button>
 
-            {/* Centered title */}
-            <Link to="/" className="flex-grow text-center">
+            {/* Website title */}
+            <Link to="/" className="ml-4">
               <span className="font-bold text-lg sm:text-xl text-gray-800">
                 My Digital Mushaf
               </span>
             </Link>
 
             {/* Right-aligned user info */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 ml-auto">
               {user ? (
                 <>
                   <span className="flex items-center text-sm text-gray-800">
@@ -101,9 +101,8 @@ export function Navbar() {
       <div
         className={`fixed inset-y-0 left-0 z-50 transform ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } transition-transform duration-300 bg-gray-100 w-56 shadow-lg`}
+        } transition-transform duration-300 bg-gray-100 w-64 shadow-lg`} // Sidebar width increased
       >
-        {/* Sidebar content */}
         <div className="h-full flex flex-col py-6 px-4">
           {/* Centered Menu Title */}
           <h2 className="text-lg font-bold text-gray-800 text-center mb-8">
